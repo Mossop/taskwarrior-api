@@ -51,7 +51,7 @@ export class TaskWarrior {
     return;
   }
 
-  public async list(filter: string[]): Promise<Task[]> {
+  public async list(filter: string[] = []): Promise<Task[]> {
     let data = await this.execTask([...filter, "export"]);
     let baseTasks = await TasksDecoder.decodePromise(JSON.parse(data));
     return baseTasks.map((base: BaseTask): Task => new InternalTask(this, base));

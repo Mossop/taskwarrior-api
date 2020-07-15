@@ -36,9 +36,12 @@ const StatusDecoder = MappingDecoder(JsonDecoder.string, (data: string): Status 
   throw new Error(`${data} is not a valid status.`);
 }, "Status");
 
-const DependsDecoder = MappingDecoder(JsonDecoder.string, (data: string): string[] => {
-  return data.split(",");
-}, "Depends");
+const DependsDecoder = JsonDecoder.oneOf([
+  MappingDecoder(JsonDecoder.string, (data: string): string[] => {
+    return data.split(",");
+  }, "Depends"),
+  JsonDecoder.isUndefined([]),
+], "Depends");
 
 const TagsDecoder = JsonDecoder.oneOf([
   JsonDecoder.array(JsonDecoder.string, "Tags"),
