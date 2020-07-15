@@ -36,12 +36,16 @@ export class TaskWarrior {
       allArgs.unshift(`rc.${name}=${value}`);
     }
 
+    let env: Record<string, string> = {};
+    if (this.options.taskRc) {
+      env["TASKRC"] = this.options.taskRc;
+    }
+    if (this.options.taskDirectory) {
+      env["TASKDATA"] = this.options.taskDirectory;
+    }
     let results = await execa(this.options.taskwarrior ?? "task", allArgs, {
       input: stdin,
-      env: {
-        TASKRC: this.options.taskRc,
-        TASKDATA: this.options.taskDirectory,
-      },
+      env,
     });
 
     return results.stdout;

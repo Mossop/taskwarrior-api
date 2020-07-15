@@ -50,11 +50,11 @@ export class Tags implements Iterable<string> {
 export class Task implements ExposedTask {
   private readonly _annotations: Annotations;
   private readonly _tags: Tags;
-  private readonly _updates: Partial<InputTask>;
+  private _updates: Partial<InputTask>;
 
   protected constructor(
     private readonly _warrior: TaskWarrior,
-    private readonly _base: BaseTask,
+    private _base: BaseTask,
   ) {
     this._annotations = new InternalAnnotations(_base.annotations);
     this._tags = new InternalTags(_base.tags);
@@ -137,7 +137,11 @@ export class Task implements ExposedTask {
    * uncommitted modifications.
    */
   public async refresh(): Promise<void> {
-    return;
+    let updated = await this._warrior.list([`uuid:${this.uuid}`]);
+    if (updated.length) {
+      this._base = updated[0]._base;
+    }
+    this._updates = {};
   }
 
   /**
