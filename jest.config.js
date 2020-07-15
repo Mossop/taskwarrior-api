@@ -11,9 +11,6 @@ module.exports = {
   collectCoverageFrom: [
     "src/**/*.ts",
   ],
-  coveragePathIgnorePatterns: [
-    "<rootDir>/src/.*\\.test\\.ts$",
-  ],
   coverageDirectory: "coverage",
   coverageReporters: [["json", {
     file: "coverage-final.json",

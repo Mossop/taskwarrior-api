@@ -75,7 +75,6 @@ export const TaskDecoder = JsonDecoder.object<BaseTask>({
   modified: DateTimeDecoder,
   scheduled: JsonDecoder.optional(DateTimeDecoder),
   project: JsonDecoder.optional(JsonDecoder.string),
-  priority: JsonDecoder.optional(JsonDecoder.string),
   depends: DependsDecoder,
   tags: TagsDecoder,
   urgency: JsonDecoder.number,

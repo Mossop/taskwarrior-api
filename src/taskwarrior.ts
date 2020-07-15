@@ -55,6 +55,14 @@ export class TaskWarrior {
     return;
   }
 
+  public async get(uuid: string): Promise<Task | null> {
+    let tasks = await this.list([`uuid:${uuid}`]);
+    if (tasks.length == 1) {
+      return tasks[0];
+    }
+    return null;
+  }
+
   public async list(filter: string[] = []): Promise<Task[]> {
     let data = await this.execTask([...filter, "export"]);
     let baseTasks = await TasksDecoder.decodePromise(JSON.parse(data));

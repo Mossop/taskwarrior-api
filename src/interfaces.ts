@@ -32,7 +32,6 @@ export interface BaseTask {
   readonly modified: DateTime;
   scheduled?: DateTime;
   project?: string;
-  priority?: string;
   depends: string[];
   tags: string[];
   readonly urgency: number;

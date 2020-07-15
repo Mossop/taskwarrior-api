@@ -83,12 +83,7 @@ export class Task implements ExposedTask {
       return Promise.resolve(null);
     }
 
-    return this._warrior.list([this._base.parent]).then((tasks: Task[]): Task | null => {
-      if (tasks.length) {
-        return tasks[0];
-      }
-      return null;
-    });
+    return this._warrior.get(this._base.parent);
   }
 
   /**
@@ -137,9 +132,9 @@ export class Task implements ExposedTask {
    * uncommitted modifications.
    */
   public async refresh(): Promise<void> {
-    let updated = await this._warrior.list([`uuid:${this.uuid}`]);
-    if (updated.length) {
-      this._base = updated[0]._base;
+    let updated = await this._warrior.get(this.uuid);
+    if (updated) {
+      this._base = updated._base;
     }
     this._updates = {};
   }
@@ -260,16 +255,6 @@ export class Task implements ExposedTask {
   }
   public set project(val: string | undefined) {
     this.setField("project", val);
-  }
-
-  /**
-   * The priority of the task.
-   */
-  public get priority(): string | undefined {
-    return this.getField("priority");
-  }
-  public set priority(val: string | undefined) {
-    this.setField("priority", val);
   }
 
   /**
