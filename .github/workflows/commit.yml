@@ -39,7 +39,14 @@ jobs:
 
     - name: Test
       run: |
-        npm run test
+        npm run test -- --collectCoverage
+
+    - name: Upload code coverage
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        bash <(curl -s https://codecov.io/bash) -f coverage/coverage-final.json
+      continue-on-error: true
 
     - name: Lint
       run: |
