@@ -1,0 +1,46 @@
+name: Commit checks
+
+on: [push, pull_request]
+
+env:
+  NODE_VERSION: '14'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v2-beta
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install taskwarrior
+
+    - name: Show versions
+      run: |
+        echo "Node $(node --version)"
+        echo "NPM $(npm --version)"
+        echo "Taskwarrior $(task _version)"
+
+    - name: Install node packages
+      run: |
+        npm install
+
+    - name: Build
+      run: |
+        npm run build
+
+    - name: Test
+      run: |
+        npm run test
+
+    - name: Lint
+      run: |
+        npm run lint
