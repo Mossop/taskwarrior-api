@@ -1,6 +1,9 @@
 
 # taskwarrior-api
 
+[![Commit checks](https://github.com/Mossop/taskwarrior-api/workflows/Commit%20checks/badge.svg)](https://github.com/Mossop/taskwarrior-api/actions?query=workflow%3A%22Commit+checks%22)
+[![codecov](https://codecov.io/gh/Mossop/taskwarrior-api/branch/master/graph/badge.svg)](https://codecov.io/gh/Mossop/taskwarrior-api)
+
 An asynchronous API for interracting with [Taskwarrior](https://taskwarrior.org/).
 
 Planned features include:
