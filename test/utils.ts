@@ -18,7 +18,14 @@ export async function buildTaskRc(
 }
 
 export async function execTask(args: string[], env: Record<string, string> = {}): Promise<void> {
-  await execa("task", args, {
+  await execa("task", [
+    "rc.confirmation=no",
+    "rc.allow.empty.filter=yes",
+    "rc.bulk=0",
+    "rc.recurrence.confirmation=yes",
+    "rc.json.array=on",
+    ...args,
+  ], {
     env,
   });
 }

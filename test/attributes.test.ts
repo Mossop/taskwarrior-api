@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 
-import tw, { Status, Task } from "../src";
+import tw, { Status, Task, Annotation } from "../src";
 import { buildTaskDb, cleanTaskDb, execTask } from "./utils";
 
 afterEach(cleanTaskDb);
@@ -43,6 +43,25 @@ test("status", async (): Promise<void> => {
   expect(tasks[0].project).toBeUndefined();
   expect([...tasks[0].tags]).toEqual([]);
   expect(tasks[0].isModified).toBeFalsy();
+});
+
+test("annotations", async (): Promise<void> => {
+  await buildTaskDb([
+    ["add", "the task"],
+    ["status:pending", "annotate", "this is the first"],
+    ["status:pending", "annotate", "this is the second"],
+  ]);
+
+  let warrior = await tw();
+
+  let tasks = await warrior.list();
+  expect(tasks).toHaveLength(1);
+  let annotations = [...tasks[0].annotations];
+  expect(annotations).toHaveLength(2);
+  expect(annotations.map((a: Annotation): string => a.description)).toEqual([
+    "this is the first",
+    "this is the second",
+  ]);
 });
 
 test("depends", async (): Promise<void> => {
