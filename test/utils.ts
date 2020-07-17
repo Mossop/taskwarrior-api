@@ -4,6 +4,8 @@ import path from "path";
 import execa from "execa";
 import { dir as tmpdir, DirectoryResult } from "tmp-promise";
 
+import { Task } from "../src";
+
 export async function buildTaskRc(
   file: string,
   settings: Record<string, string> = {},
@@ -45,4 +47,12 @@ export async function cleanTaskDb(): Promise<void> {
   if (tmp) {
     await tmp.cleanup();
   }
+}
+
+export function checkTaskDescriptions(tasks: Task[], expected: string[]): void {
+  let found = tasks.map((t: Task): string => t.description);
+  found.sort();
+  expected.sort();
+
+  expect(found).toEqual(expected);
 }

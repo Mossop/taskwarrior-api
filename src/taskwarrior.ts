@@ -69,6 +69,11 @@ export class TaskWarrior {
     return baseTasks.map((base: BaseTask): Task => new InternalTask(this, base));
   }
 
+  public async count(filter: string[] = []): Promise<number> {
+    let data = await this.execTask([...filter, "count"]);
+    return parseInt(data.trim());
+  }
+
   public static async create(options: TaskWarriorOptions = {}): Promise<TaskWarrior> {
     let tw = new TaskWarrior(options);
     await tw.reloadConfiguration();

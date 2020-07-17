@@ -30,7 +30,9 @@ export class Annotations implements Iterable<Annotation> {
   }
 
   public get [Symbol.iterator](): () => Iterator<Annotation> {
-    return this._annotations[Symbol.iterator];
+    return (): Iterator<Annotation> => {
+      return this._annotations[Symbol.iterator]();
+    };
   }
 }
 
@@ -43,7 +45,9 @@ export class Tags implements Iterable<string> {
   }
 
   public get [Symbol.iterator](): () => Iterator<string> {
-    return this._tags[Symbol.iterator];
+    return (): Iterator<string> => {
+      return this._tags[Symbol.iterator]();
+    };
   }
 }
 
@@ -264,6 +268,9 @@ export class Task implements ExposedTask {
     return this.getField("urgency");
   }
 }
+
+// These classes exist to hide functionality to be exposed to tests from the public interface.
+// Use them at your peril!
 
 class InternalAnnotation extends Annotation {
   public constructor(base: BaseAnnotation) {
