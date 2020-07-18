@@ -1,8 +1,8 @@
 import { DateTime } from "luxon";
 
 export interface Annotation {
-  readonly entry: DateTime;
-  readonly description: string;
+  entry: DateTime;
+  description: string;
 }
 
 export type UUID = string;
@@ -44,8 +44,14 @@ type Importable<T> = {
   [K in keyof T]: IntoImportable<T[K]>;
 };
 
-export type ImportableTask = Importable<CreateTask> & {
+export interface ImportableAnnotation {
+  entry: string;
+  description: string;
+}
+
+export type ImportableTask = Importable<Omit<CreateTask, "annotations">> & {
   uuid: string;
+  annotations?: ImportableAnnotation[];
 };
 
 type ReplacedFields = "tags" | "annotations" | "depends";
