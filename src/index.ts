@@ -1,10 +1,12 @@
-import { TaskWarrior, TaskWarriorOptions } from "./taskwarrior";
+import { TaskWarrior, TaskWarriorOptions, InternalTaskWarrior } from "./taskwarrior";
 
 export type { TaskWarriorOptions, TaskWarrior } from "./taskwarrior";
-export type { Task, Annotations, Annotation, Tags } from "./task";
-export type { InputTask } from "./interfaces";
+export type { Task } from "./task";
+export type { BaseTask, Annotation } from "./interfaces";
 export { Status } from "./interfaces";
 
-export default function(options?: TaskWarriorOptions): Promise<TaskWarrior> {
-  return TaskWarrior.create(options);
+export default async function(options: TaskWarriorOptions = {}): Promise<TaskWarrior> {
+  let tw = new InternalTaskWarrior(options);
+  await tw.reloadConfiguration();
+  return tw;
 }

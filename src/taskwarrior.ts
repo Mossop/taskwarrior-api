@@ -1,12 +1,21 @@
 import execa from "execa";
 
 import { TasksDecoder } from "./decoders";
-import { BaseTask } from "./interfaces";
-import { Task, InternalTask } from "./task";
+import { ParsedTask, CreateTask, ImportableTask } from "./interfaces";
+import { Task, InternalTask, toJSON } from "./task";
 
 export interface TaskWarriorOptions {
+  /**
+   * The path to the taskwarrior binary. By default `task` in the system path is used.
+   */
   taskwarrior?: string;
+  /**
+   * The path to the `.taskrc` file. Normal Taskwarrior defaults apply.
+   */
   taskRc?: string;
+  /**
+   * The path to the tasks directory. Normal Taskwarrior defaults apply.
+   */
   taskDirectory?: string;
 }
 
@@ -22,14 +31,18 @@ function defaultSettings(): Settings {
   };
 }
 
-export class TaskWarrior {
+export abstract class TaskWarrior {
   private settings: Settings;
 
-  private constructor(private readonly options: Readonly<TaskWarriorOptions>) {
+  protected constructor(private readonly options: Readonly<TaskWarriorOptions>) {
     this.settings = defaultSettings();
   }
 
-  private async execTask(args: string[], settings: Settings = {}, stdin?: string): Promise<string> {
+  protected async execTask(
+    args: string[],
+    settings: Settings = {},
+    stdin?: string,
+  ): Promise<string> {
     settings = Object.assign({}, this.settings, settings);
     let allArgs = [...args];
     for (let [name, value] of Object.entries(settings)) {
@@ -51,7 +64,9 @@ export class TaskWarrior {
     return results.stdout;
   }
 
-  private async reloadConfiguration(): Promise<void> {
+  protected abstract buildTask(parsed: ParsedTask): Task;
+
+  public async reloadConfiguration(): Promise<void> {
     return;
   }
 
@@ -66,7 +81,7 @@ export class TaskWarrior {
   public async list(filter: string[] = []): Promise<Task[]> {
     let data = await this.execTask([...filter, "export"]);
     let baseTasks = await TasksDecoder.decodePromise(JSON.parse(data));
-    return baseTasks.map((base: BaseTask): Task => new InternalTask(this, base));
+    return baseTasks.map((base: ParsedTask): Task => this.buildTask(base));
   }
 
   public async count(filter: string[] = []): Promise<number> {
@@ -74,9 +89,38 @@ export class TaskWarrior {
     return parseInt(data.trim());
   }
 
-  public static async create(options: TaskWarriorOptions = {}): Promise<TaskWarrior> {
-    let tw = new TaskWarrior(options);
-    await tw.reloadConfiguration();
-    return tw;
+  public async create(task: CreateTask): Promise<Task> {
+    let created = await this.bulkCreate([task]);
+    return created[0];
+  }
+
+  public async bulkCreate(tasks: CreateTask[]): Promise<Task[]> {
+    let json = tasks.map(toJSON);
+    await this.execTask(["import"], undefined, JSON.stringify(json));
+    let uuids = json.map((item: ImportableTask): string => item.uuid);
+
+    let imported = await this.list(uuids);
+    return uuids.map((wanted: string, index: number): Task => {
+      let found = imported.find((task: Task): boolean => task.uuid == wanted);
+      if (found) {
+        return found;
+      }
+
+      throw new Error(`Failed to import task: ${JSON.stringify(tasks[index])}`);
+    });
+  }
+}
+
+export class InternalTaskWarrior extends TaskWarrior {
+  public constructor(options: Readonly<TaskWarriorOptions>) {
+    super(options);
+  }
+
+  public async execTask(args: string[], settings: Settings = {}, stdin?: string): Promise<string> {
+    return super.execTask(args, settings, stdin);
+  }
+
+  protected buildTask(parsed: ParsedTask): Task {
+    return new InternalTask(this, parsed);
   }
 }

@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 
 import tw, { Status, Task, Annotation } from "../src";
+import { expect } from "./expect";
 import { buildTaskDb, cleanTaskDb, execTask } from "./utils";
 
 afterEach(cleanTaskDb);
@@ -25,7 +26,7 @@ test("attributes", async (): Promise<void> => {
   expect(tasks[0].status).toBe(Status.Pending);
   expect(tasks[0].project).toBe("Foo");
   expect([...tasks[0].tags]).toEqual(["MyTag", "OtherTag"]);
-  expect(tasks[0].entry.toUTC().toISO()).toBe(entry.toISO());
+  expect(tasks[0].entry).toEqualDate(entry);
   expect(tasks[0].isModified).toBeFalsy();
 });
 
@@ -40,7 +41,7 @@ test("status", async (): Promise<void> => {
   expect(tasks).toHaveLength(1);
   expect(tasks[0].description).toBe("something completed");
   expect(tasks[0].status).toBe(Status.Completed);
-  expect(tasks[0].project).toBeUndefined();
+  expect(tasks[0].project).toBeNull();
   expect([...tasks[0].tags]).toEqual([]);
   expect(tasks[0].isModified).toBeFalsy();
 });

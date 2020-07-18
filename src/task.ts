@@ -1,81 +1,54 @@
 import { DateTime } from "luxon";
+import { v4 as uuid } from "uuid";
 
-import { BaseTask, ExposedTask, BaseAnnotation, Status, UUID, InputTask } from "./interfaces";
-import { TaskWarrior } from "./taskwarrior";
+import {
+  BaseTask,
+  ExposedTask,
+  Annotation,
+  Status,
+  UUID,
+  ParsedTask,
+  CreateTask,
+  ImportableTask,
+} from "./interfaces";
+import { InternalTaskWarrior } from "./taskwarrior";
 
-export class Annotation implements BaseAnnotation {
-  protected constructor(private readonly _base: BaseAnnotation) {
+function iso(dt: DateTime | null | undefined): string | undefined {
+  if (!dt) {
+    return undefined;
   }
 
-  public get entry(): DateTime {
-    return this._base.entry;
-  }
-
-  public get description(): string {
-    return this._base.description;
-  }
+  return dt.toISO({ suppressMilliseconds: true });
 }
 
-export class Annotations implements Iterable<Annotation> {
+export abstract class Task implements ExposedTask {
   private readonly _annotations: Annotation[];
-
-  protected constructor(annotations: BaseAnnotation[]) {
-    this._annotations = annotations.map((ann: BaseAnnotation): Annotation => {
-      return new InternalAnnotation(ann);
-    });
-  }
-
-  public get isModified(): boolean {
-    return false;
-  }
-
-  public get [Symbol.iterator](): () => Iterator<Annotation> {
-    return (): Iterator<Annotation> => {
-      return this._annotations[Symbol.iterator]();
-    };
-  }
-}
-
-export class Tags implements Iterable<string> {
-  protected constructor(private readonly _tags: string[]) {
-  }
-
-  public get isModified(): boolean {
-    return false;
-  }
-
-  public get [Symbol.iterator](): () => Iterator<string> {
-    return (): Iterator<string> => {
-      return this._tags[Symbol.iterator]();
-    };
-  }
-}
-
-export class Task implements ExposedTask {
-  private readonly _annotations: Annotations;
-  private readonly _tags: Tags;
-  private _updates: Partial<InputTask>;
+  private readonly _tags: Set<string>;
+  private _updates: Partial<BaseTask>;
 
   protected constructor(
-    private readonly _warrior: TaskWarrior,
-    private _base: BaseTask,
+    private readonly _warrior: InternalTaskWarrior,
+    private _base: ParsedTask,
   ) {
-    this._annotations = new InternalAnnotations(_base.annotations);
-    this._tags = new InternalTags(_base.tags);
+    this._annotations = [..._base.annotations];
+    this._tags = new Set(_base.tags);
     this._updates = {};
   }
 
-  private getField<K extends keyof ExposedTask>(field: K): ExposedTask[K] {
-    if (field in this._updates) {
-      // @ts-ignore: InputTask is a subset of ExposedTask
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return this._updates[field];
+  private getField<K extends keyof BaseTask>(field: K): BaseTask[K] {
+    let updated = this._updates[field] as BaseTask[K] | undefined;
+    if (updated) {
+      return updated;
     }
     return this._base[field];
   }
 
-  private setField<K extends keyof InputTask>(field: K, value: InputTask[K]): void {
-    this._updates[field] = value;
+  private setField<K extends keyof BaseTask>(field: K, value: BaseTask[K]): void {
+    if (this._base[field] == value) {
+      delete this._updates[field];
+    } else {
+      this._updates[field] = value;
+    }
   }
 
   /**
@@ -105,14 +78,14 @@ export class Task implements ExposedTask {
   /**
    * The annotations on a task.
    */
-  public get annotations(): Annotations {
+  public get annotations(): Annotation[] {
     return this._annotations;
   }
 
   /**
    * The tags assigned to a task.
    */
-  public get tags(): Tags {
+  public get tags(): Set<string> {
     return this._tags;
   }
 
@@ -120,22 +93,54 @@ export class Task implements ExposedTask {
    * Whether there are any in-memory modifications that need to be committed to the task database.
    */
   public get isModified(): boolean {
-    return Object.keys(this._updates).length > 0 ||
-      this.annotations.isModified || this.tags.isModified;
+    if (Object.keys(this._updates).length) {
+      return true;
+    }
+
+    if (this._tags.size != this._base.tags.length) {
+      return true;
+    }
+
+    if (this._annotations.length != this._base.annotations.length) {
+      return true;
+    }
+
+    for (let tag of this._base.tags) {
+      if (!this._tags.has(tag)) {
+        return true;
+      }
+    }
+
+    // Not perfect, but good enough.
+    for (let annotation of this._base.annotations) {
+      if (!this._annotations.includes(annotation)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
-   * Commits modifications to the task database and then reloads any new changes for this task.
+   * Pushes local modifications to the task database and then reloads any new changes for this task.
    */
-  public async commit(): Promise<void> {
-    return this.refresh();
+  public async update(): Promise<void> {
+    return this.reload();
+  }
+
+  /**
+   * Writes the current state of this task to the task database overwriting any changes that may
+   * have been made there since this task was retrieved.
+   */
+  public async save(): Promise<void> {
+    return this.reload();
   }
 
   /**
    * Reloads this task from the task database bringing in any new changes and discarding any
    * uncommitted modifications.
    */
-  public async refresh(): Promise<void> {
+  public async reload(): Promise<void> {
     let updated = await this._warrior.get(this.uuid);
     if (updated) {
       this._base = updated._base;
@@ -147,7 +152,7 @@ export class Task implements ExposedTask {
    * The task's unique identifier.
    */
   public get uuid(): UUID {
-    return this.getField("uuid");
+    return this._base.uuid;
   }
 
   /**
@@ -180,57 +185,60 @@ export class Task implements ExposedTask {
   /**
    * When the task was started.
    */
-  public get start(): DateTime | undefined {
+  public get start(): DateTime | null {
     return this.getField("start");
   }
-  public set start(val: DateTime | undefined) {
+  public set start(val: DateTime | null) {
     this.setField("start", val);
   }
 
   /**
    * When the task was completed or deleted, unset for other statuses.
    */
-  public get end(): DateTime | undefined {
+  public get end(): DateTime | null {
     return this.getField("end");
+  }
+  public set end(val: DateTime | null) {
+    this.setField("end", val);
   }
 
   /**
    * When the task is due.
    */
-  public get due(): DateTime | undefined {
+  public get due(): DateTime | null {
     return this.getField("due");
   }
-  public set due(val: DateTime | undefined) {
+  public set due(val: DateTime | null) {
     this.setField("due", val);
   }
 
   /**
    * Marks a task as hidden until the wait date.
    */
-  public get wait(): DateTime | undefined {
+  public get wait(): DateTime | null {
     return this.getField("wait");
   }
-  public set wait(val: DateTime | undefined) {
+  public set wait(val: DateTime | null) {
     this.setField("wait", val);
   }
 
   /**
    * When recurrence will end.
    */
-  public get until(): DateTime | undefined {
+  public get until(): DateTime | null {
     return this.getField("until");
   }
-  public set until(val: DateTime | undefined) {
+  public set until(val: DateTime | null) {
     this.setField("until", val);
   }
 
   /**
    * How often to recur. Only set for parent or child recurring tasks.
    */
-  public get recur(): string | undefined {
+  public get recur(): string | null {
     return this.getField("recur");
   }
-  public set recur(val: string | undefined) {
+  public set recur(val: string | null) {
     this.setField("recur", val);
   }
 
@@ -238,26 +246,26 @@ export class Task implements ExposedTask {
    * When the task was last modified.
    */
   public get modified(): DateTime {
-    return this.getField("modified");
+    return this._base.modified;
   }
 
   /**
    * When the task is available to start.
    */
-  public get scheduled(): DateTime | undefined {
+  public get scheduled(): DateTime | null {
     return this.getField("scheduled");
   }
-  public set scheduled(val: DateTime | undefined) {
+  public set scheduled(val: DateTime | null) {
     this.setField("scheduled", val);
   }
 
   /**
    * The project a task belongs to.
    */
-  public get project(): string | undefined {
+  public get project(): string | null {
     return this.getField("project");
   }
-  public set project(val: string | undefined) {
+  public set project(val: string | null) {
     this.setField("project", val);
   }
 
@@ -265,33 +273,50 @@ export class Task implements ExposedTask {
    * The urgency of the task.
    */
   public get urgency(): number {
-    return this.getField("urgency");
+    return this._base.urgency;
   }
+}
+
+export function toJSON(task: CreateTask | Task): ImportableTask {
+  let result: ImportableTask = {
+    uuid: task instanceof Task ? task.uuid : uuid(),
+    status: task.status == Status.Waiting ? Status.Pending : task.status,
+    description: task.description,
+    entry: iso(task.entry),
+    start: iso(task.start),
+    end: iso(task.end),
+    due: iso(task.due),
+    wait: iso(task.wait),
+    until: iso(task.until),
+    recur: task.recur,
+    scheduled: iso(task.scheduled),
+    project: task.project,
+    tags: task.tags ? [...task.tags] : undefined,
+    annotations: task.annotations ? [...task.annotations] : undefined,
+  };
+
+  // Taskwarrior dislikes nulls and undefineds so strip out those properties.
+  return Object.fromEntries(
+    Object.entries(result)
+      .filter(([_key, value]: [string, unknown]): boolean => {
+        return value !== undefined && value !== null;
+      }),
+  ) as ImportableTask;
 }
 
 // These classes exist to hide functionality to be exposed to tests from the public interface.
 // Use them at your peril!
 
-class InternalAnnotation extends Annotation {
-  public constructor(base: BaseAnnotation) {
-    super(base);
-  }
-}
-
-class InternalAnnotations extends Annotations {
-  public constructor(annotations: BaseAnnotation[]) {
-    super(annotations);
-  }
-}
-
-class InternalTags extends Tags {
-  public constructor(tags: string[]) {
-    super(tags);
-  }
-}
-
 export class InternalTask extends Task {
-  public constructor(warrior: TaskWarrior, base: BaseTask) {
+  public constructor(warrior: InternalTaskWarrior, base: ParsedTask) {
     super(warrior, base);
+  }
+
+  public toJSON(): Record<string, unknown> {
+    return toJSON(this);
+  }
+
+  public updateArguments(): string[] {
+    return [];
   }
 }

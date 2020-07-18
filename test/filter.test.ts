@@ -70,4 +70,17 @@ test("simple filters", async (): Promise<void> => {
   await checkFilter(warrior, ["status:completed"], [
     "task 5",
   ]);
+
+  await checkFilter(warrior, ["status:pending", "-foob"], [
+    "task 1",
+    "task 2",
+    "task 3",
+  ]);
+
+  await checkFilter(warrior, ["status:pending", "+foob"], [
+    "task 4",
+  ]);
+
+  await checkFilter(warrior, ["status:completed", "+foob"], [
+  ]);
 });

@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 
-export interface BaseAnnotation {
+export interface Annotation {
   readonly entry: DateTime;
   readonly description: string;
 }
@@ -16,29 +16,51 @@ export enum Status {
 }
 
 export interface BaseTask {
-  readonly uuid: UUID;
-  readonly status: Status;
+  status: Status;
   description: string;
   entry: DateTime;
-  start?: DateTime;
-  readonly end?: DateTime;
-  due?: DateTime;
-  wait?: DateTime;
-  until?: DateTime;
-  recur?: string;
-  parent?: string;
-  mask?: string;
-  imask?: number;
-  readonly modified: DateTime;
-  scheduled?: DateTime;
-  project?: string;
-  depends: string[];
+  start: DateTime | null;
+  end: DateTime | null;
+  due: DateTime | null;
+  wait: DateTime | null;
+  until: DateTime | null;
+  recur: string | null;
+  scheduled: DateTime | null;
+  project: string | null;
   tags: string[];
-  readonly urgency: number;
-  readonly annotations: BaseAnnotation[];
+  annotations: Annotation[];
 }
 
-type RecurrenceFields = "parent" | "mask" | "imask";
-type GeneratedFields = "uuid" | "status" | "modified" | "urgency";
-export type ExposedTask = Omit<BaseTask, RecurrenceFields | "depends" | "annotations" | "tags">;
-export type InputTask = Omit<ExposedTask, GeneratedFields | "end">;
+export type CreateTask = Partial<BaseTask> & {
+  description: string;
+};
+
+type IntoImportable<T> =
+  T extends DateTime
+    ? string
+    : T;
+
+type Importable<T> = {
+  [K in keyof T]: IntoImportable<T[K]>;
+};
+
+export type ImportableTask = Importable<CreateTask> & {
+  uuid: string;
+};
+
+type ReplacedFields = "tags" | "annotations" | "depends";
+
+interface TaskRecurrence {
+  parent: string | null;
+  mask: string | null;
+  imask: number | null;
+}
+
+interface GeneratedTaskFields {
+  readonly uuid: UUID;
+  readonly modified: DateTime;
+  readonly urgency: number;
+}
+
+export type ExposedTask = Omit<BaseTask & GeneratedTaskFields, ReplacedFields>;
+export type ParsedTask = BaseTask & GeneratedTaskFields & TaskRecurrence;
