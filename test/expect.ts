@@ -2,6 +2,8 @@ import { expect as jestExpect } from "@jest/globals";
 import diff from "jest-diff";
 import { DateTime } from "luxon";
 
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 const matchers = {
   toEqualDate(
     this: jest.MatcherContext,
@@ -43,7 +45,7 @@ const matchers = {
     this: jest.MatcherContext,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     received: any,
-    expected: DateTime,
+    expected: DateTime = DateTime.local(),
     maxOffset: number = 60,
   ): jest.CustomMatcherResult {
     if (!(received instanceof DateTime)) {

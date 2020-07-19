@@ -46,16 +46,22 @@ export function annotation(text: string, time: DateTime = DateTime.local()): Ann
 }
 
 export abstract class Task implements ExposedTask {
-  private readonly _annotations: Annotation[];
-  private readonly _tags: Set<string>;
-  private _updates: Partial<BaseTask>;
+  private _annotations: Annotation[] = [];
+  private _tags: Set<string> = new Set();
+  private _updates: Partial<BaseTask> = {};
 
   protected constructor(
     private readonly _warrior: InternalTaskWarrior,
     private _base: ParsedTask,
   ) {
-    this._annotations = [..._base.annotations];
-    this._tags = new Set(_base.tags);
+    this.initFrom(_base);
+  }
+
+  protected initFrom(base: ParsedTask): void {
+    this._base = base;
+
+    this._annotations = [...this._base.annotations];
+    this._tags = new Set(this._base.tags);
     this._updates = {};
   }
 
@@ -157,7 +163,7 @@ export abstract class Task implements ExposedTask {
    * have been made there since this task was retrieved.
    */
   public async save(): Promise<void> {
-    return this.reload();
+    return this._warrior.bulkSave([this]);
   }
 
   /**
@@ -165,11 +171,12 @@ export abstract class Task implements ExposedTask {
    * uncommitted modifications.
    */
   public async reload(): Promise<void> {
-    let updated = await this._warrior.get(this.uuid);
-    if (updated) {
-      this._base = updated._base;
+    let updated = await this._warrior.internalList([`uuid:${this.uuid}`]);
+    if (updated.length == 0) {
+      throw new Error("Missing task definition.");
     }
-    this._updates = {};
+
+    this.initFrom(updated[0]);
   }
 
   /**
@@ -384,6 +391,10 @@ export class InternalTask extends Task {
 
   public toJSON(): Record<string, unknown> {
     return toJSON(this);
+  }
+
+  public overwrite(parsed: ParsedTask): void {
+    this.initFrom(parsed);
   }
 
   public updateArguments(): string[] {

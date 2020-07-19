@@ -79,9 +79,13 @@ export abstract class TaskWarrior {
   }
 
   public async list(filter: string[] = []): Promise<Task[]> {
-    let data = await this.execTask([...filter, "export"]);
-    let baseTasks = await TasksDecoder.decodePromise(JSON.parse(data));
+    let baseTasks = await this.internalList(filter);
     return baseTasks.map((base: ParsedTask): Task => this.buildTask(base));
+  }
+
+  protected async internalList(filter: string[] = []): Promise<ParsedTask[]> {
+    let data = await this.execTask([...filter, "export"]);
+    return TasksDecoder.decodePromise(JSON.parse(data));
   }
 
   public async count(filter: string[] = []): Promise<number> {
@@ -109,6 +113,28 @@ export abstract class TaskWarrior {
       throw new Error(`Failed to import task: ${JSON.stringify(tasks[index])}`);
     });
   }
+
+  public async bulkSave(tasks: Task[]): Promise<void> {
+    let internals = tasks.map((task: Task): InternalTask => {
+      if (task instanceof InternalTask) {
+        return task;
+      }
+      throw new Error("Custom task implementations are not supported.");
+    });
+
+    await this.execTask(["import"], undefined, JSON.stringify(internals));
+    let uuids = internals.map((item: Task): string => item.uuid);
+
+    let imported = await this.internalList(uuids);
+    for (let task of internals) {
+      let found = imported.find((t: ParsedTask): boolean => t.uuid == task.uuid);
+      if (found) {
+        task.overwrite(found);
+      } else {
+        throw new Error(`Failed to save task ${task.uuid}`);
+      }
+    }
+  }
 }
 
 export class InternalTaskWarrior extends TaskWarrior {
@@ -118,6 +144,10 @@ export class InternalTaskWarrior extends TaskWarrior {
 
   public async execTask(args: string[], settings: Settings = {}, stdin?: string): Promise<string> {
     return super.execTask(args, settings, stdin);
+  }
+
+  public async internalList(filter: string[] = []): Promise<ParsedTask[]> {
+    return super.internalList(filter);
   }
 
   protected buildTask(parsed: ParsedTask): Task {

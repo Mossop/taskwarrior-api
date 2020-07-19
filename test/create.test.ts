@@ -2,12 +2,10 @@ import { DateTime } from "luxon";
 
 import tw, { Status } from "../src";
 import { toJSON, annotation } from "../src/task";
-import { expect } from "./expect";
+import { expect, UUID_REGEX } from "./expect";
 import { buildTaskDb, cleanTaskDb } from "./utils";
 
 afterEach(cleanTaskDb);
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 test("basic create", async (): Promise<void> => {
   await buildTaskDb();
