@@ -71,14 +71,17 @@ test("tags and annotations", async (): Promise<void> => {
   let list = await warrior.list();
   expect(list).toHaveLength(0);
 
+  let dt1 = DateTime.utc(2020, 6, 7);
+  let dt2 = DateTime.utc(2020, 5, 8);
+
   let [withTags, withAnnotations] = await warrior.bulkCreate([{
     description: "with tags task",
     tags: ["a", "foo", "bar"],
   }, {
     description: "with annotations",
     annotations: [
-      annotation("foo"),
-      annotation("bar"),
+      annotation("foo", dt1),
+      annotation("bar", dt2),
     ],
   }]);
 
@@ -96,11 +99,11 @@ test("tags and annotations", async (): Promise<void> => {
     status: Status.Pending,
     description: "with annotations",
     annotations: [{
-      entry: expect.toBeCloseToDate(DateTime.local()),
-      description: "foo",
-    }, {
-      entry: expect.toBeCloseToDate(DateTime.local()),
+      entry: expect.toEqualDate(dt2),
       description: "bar",
+    }, {
+      entry: expect.toEqualDate(dt1),
+      description: "foo",
     }],
   });
 });

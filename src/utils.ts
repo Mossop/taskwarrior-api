@@ -30,28 +30,62 @@ function rounded(dt: DateTime): DateTime {
 
 export function annotation(text: string, time: DateTime = DateTime.local()): Annotation {
   return {
-    entry: time,
+    entry: rounded(time),
     description: text,
   };
 }
 
+export function annotationsEqual(a: Annotation, b: Annotation): boolean {
+  return a.entry == b.entry && a.description == b.description;
+}
+
+export function addAnnotation(annotations: Annotation[], ann: Annotation): void {
+  let i = 0;
+  while (i < annotations.length && annotations[i].entry < ann.entry) {
+    i++;
+  }
+
+  // Did we hit the end of the array?
+  if (i == annotations.length) {
+    annotations.push(ann);
+    return;
+  }
+
+  // Can we just insert here?
+  if (annotations[i].entry > ann.entry) {
+    annotations.splice(i, 0, ann);
+    return;
+  }
+
+  // If the dates are the same then increment this one and insert it afterwards.
+  ann.entry = ann.entry.plus({ second: 1 });
+  annotations.splice(i + 1, 0, ann);
+
+  // Maybe increase the remainder.
+  i += 2;
+  while (i < annotations.length) {
+    // Should never be less than but for safety...
+    if (annotations[i].entry <= annotations[i - 1].entry) {
+      annotations[i].entry = annotations[i - 1].entry.plus({ second: 1 });
+    } else {
+      // Nothing more to do now.
+      return;
+    }
+
+    i++;
+  }
+}
+
 export function toJSON(task: CreateTask | Task): ImportableTask {
   let annotations: Annotation[] | undefined = undefined;
-  if (task.annotations?.length) {
-    annotations = task.annotations.map((a: Annotation): Annotation => ({ ...a }));
-    annotations.sort((a: Annotation, b: Annotation): number => {
-      return a.entry.valueOf() - b.entry.valueOf();
-    });
-
-    annotations[0].entry = rounded(annotations[0].entry);
-    for (let i = 1; i < annotations.length; i++) {
-      annotations[i].entry = rounded(annotations[i].entry);
-
-      // Taskwarrior doesn't support annotations with the same time, push dates forward a second
-      // to make sure they don't conflict.
-      if (annotations[i].entry <= annotations[i - 1].entry) {
-        annotations[i].entry = annotations[i - 1].entry.plus({ second: 1 });
-      }
+  if (task instanceof Task) {
+    if (task.annotations.length) {
+      annotations = [...task.annotations];
+    }
+  } else if (task.annotations?.length) {
+    annotations = [];
+    for (let ann of task.annotations) {
+      addAnnotation(annotations, ann);
     }
   }
 

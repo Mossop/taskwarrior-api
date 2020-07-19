@@ -9,10 +9,93 @@ import {
   ParsedTask,
 } from "./interfaces";
 import { InternalTaskWarrior } from "./taskwarrior";
-import { toJSON } from "./utils";
+import { toJSON, annotation, annotationsEqual, addAnnotation } from "./utils";
+
+export abstract class Annotations implements Iterable<Annotation> {
+  private _annotations: Annotation[];
+
+  protected constructor(annotations: Annotation[]) {
+    this._annotations = [];
+    for (let ann of annotations) {
+      addAnnotation(this._annotations, ann);
+    }
+  }
+
+  public add(ann: Annotation): void;
+  public add(description: string, dt?: DateTime): void;
+  public add(arg0: string | Annotation, dt?: DateTime): void {
+    let ann = typeof arg0 == "string" ? annotation(arg0, dt) : arg0;
+
+    addAnnotation(this._annotations, ann);
+  }
+
+  public delete(annotation: Annotation): boolean {
+    for (let i = 0; i < this._annotations.length; i++) {
+      if (annotationsEqual(this._annotations[i], annotation)) {
+        this._annotations.splice(i, 1);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public find(callbackfn: (value: Annotation, index: number) => boolean): Annotation | undefined {
+    return this._annotations.find(callbackfn);
+  }
+
+  public slice(start?: number, end?: number): Annotation[] {
+    return this._annotations.slice(start, end);
+  }
+
+  public includes(annotation: Annotation): boolean {
+    return this._annotations.find(
+      (a: Annotation): boolean => annotationsEqual(a, annotation),
+    ) != undefined;
+  }
+
+  public filter(callbackfn: (value: Annotation, index: number) => boolean): Annotation[] {
+    return this._annotations.filter(callbackfn);
+  }
+
+  public map<T>(callbackfn: (value: Annotation, index: number) => T): T[] {
+    return this._annotations.map(callbackfn);
+  }
+
+  public get(item: number): Annotation | undefined {
+    return this._annotations[item];
+  }
+
+  public get length(): number {
+    return this._annotations.length;
+  }
+
+  public get [Symbol.iterator](): () => Iterator<Annotation> {
+    return (): Iterator<Annotation> => {
+      return this._annotations[Symbol.iterator]();
+    };
+  }
+}
+
+const numeric = /^\d+$/;
+
+function annotations(
+  annotations: Annotations,
+): Annotations & Record<number, Annotation | undefined> {
+  return new Proxy(annotations, {
+    get(target: Annotations, property: string | symbol): unknown {
+      if (typeof property == "string" && numeric.test(property)) {
+        return target.get(parseInt(property));
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return target[property];
+    },
+  }) as Annotations & Record<number, Annotation | undefined>;
+}
 
 export abstract class Task implements ExposedTask {
-  private _annotations: Annotation[] = [];
+  private _annotations: Annotations & Record<number, Annotation | undefined>;
   private _tags: Set<string> = new Set();
   private _updates: Partial<BaseTask> = {};
 
@@ -20,13 +103,15 @@ export abstract class Task implements ExposedTask {
     private readonly _warrior: InternalTaskWarrior,
     private _base: ParsedTask,
   ) {
-    this.initFrom(_base);
+    this._annotations = annotations(new InternalAnnotations(this._base.annotations));
+    this._tags = new Set(this._base.tags);
+    this._updates = {};
   }
 
   protected initFrom(base: ParsedTask): void {
     this._base = base;
 
-    this._annotations = [...this._base.annotations];
+    this._annotations = annotations(new InternalAnnotations(this._base.annotations));
     this._tags = new Set(this._base.tags);
     this._updates = {};
   }
@@ -73,7 +158,7 @@ export abstract class Task implements ExposedTask {
   /**
    * The annotations on a task.
    */
-  public get annotations(): Annotation[] {
+  public get annotations(): Annotations & Record<number, Annotation | undefined> {
     return this._annotations;
   }
 
@@ -279,6 +364,12 @@ export abstract class Task implements ExposedTask {
 
 // These classes exist to hide functionality to be exposed to tests from the public interface.
 // Use them at your peril!
+
+class InternalAnnotations extends Annotations {
+  public constructor(annotations: Annotation[]) {
+    super(annotations);
+  }
+}
 
 export class InternalTask extends Task {
   public constructor(warrior: InternalTaskWarrior, base: ParsedTask) {
