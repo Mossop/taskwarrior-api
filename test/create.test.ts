@@ -30,6 +30,10 @@ test("basic create", async (): Promise<void> => {
   expect(found).toHaveLength(1);
 
   expect(toJSON(found[0])).toEqual(toJSON(built));
+
+  let task = await warrior.get(built.uuid);
+  expect(task).toBeTruthy();
+  expect(toJSON(task!)).toEqual(toJSON(built));
 });
 
 test("create completed", async (): Promise<void> => {
