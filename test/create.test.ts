@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 
 import tw, { Status } from "../src";
-import { toJSON, annotation } from "../src/task";
+import { toJSON, annotation } from "../src/utils";
 import { expect, UUID_REGEX } from "./expect";
 import { buildTaskDb, cleanTaskDb } from "./utils";
 

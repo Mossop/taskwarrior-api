@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 
 import tw, { Status } from "../src";
-import { toJSON } from "../src/task";
+import { toJSON } from "../src/utils";
 import { expect, UUID_REGEX } from "./expect";
 import { buildTaskDb, cleanTaskDb } from "./utils";
 
@@ -197,6 +197,7 @@ test("Abandon changes", async (): Promise<void> => {
   task.wait = DateTime.local();
   task.due = DateTime.local();
   task.tags.add("hello");
+  task.project = null;
   expect(task.isModified).toBeTruthy();
 
   expect(toJSON(task)).toEqual({

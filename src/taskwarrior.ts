@@ -2,7 +2,8 @@ import execa from "execa";
 
 import { TasksDecoder } from "./decoders";
 import { ParsedTask, CreateTask, ImportableTask } from "./interfaces";
-import { Task, InternalTask, toJSON } from "./task";
+import { Task, InternalTask } from "./task";
+import { toJSON } from "./utils";
 
 export interface TaskWarriorOptions {
   /**
