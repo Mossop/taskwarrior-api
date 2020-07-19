@@ -66,9 +66,8 @@ export abstract class Task implements ExposedTask {
   }
 
   private getField<K extends keyof BaseTask>(field: K): BaseTask[K] {
-    let updated = this._updates[field] as BaseTask[K] | undefined;
-    if (updated) {
-      return updated;
+    if (field in this._updates) {
+      return this._updates[field] as BaseTask[K];
     }
     return this._base[field];
   }

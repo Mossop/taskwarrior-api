@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 
-import tw from "../src";
+import tw, { Status } from "../src";
 import { toJSON } from "../src/task";
 import { expect, UUID_REGEX } from "./expect";
 import { buildTaskDb, cleanTaskDb } from "./utils";
@@ -154,6 +154,71 @@ test("Tags", async (): Promise<void> => {
     entry: expect.toBeCloseToDate(),
     description: "the task",
     tags: ["OtherTag", "foo"],
+    project: "Foo",
+  });
+});
+
+test("Abandon changes", async (): Promise<void> => {
+  await buildTaskDb([
+    [
+      "add",
+      "project:Foo",
+      "tag:MyTag,OtherTag",
+      "the task",
+    ],
+  ]);
+
+  let warrior = await tw();
+
+  let tasks = await warrior.list();
+  expect(tasks).toHaveLength(1);
+
+  let task = tasks[0];
+  expect(task.isModified).toBeFalsy();
+  let uuid = task.uuid;
+
+  expect(toJSON(task)).toEqual({
+    uuid: expect.stringMatching(UUID_REGEX),
+    status: "pending",
+    entry: expect.toBeCloseToDate(),
+    description: "the task",
+    tags: ["MyTag", "OtherTag"],
+    project: "Foo",
+  });
+
+  task.wait = DateTime.local();
+  expect(task.isModified).toBeTruthy();
+  expect(task.status).toBe(Status.Waiting);
+
+  task.wait = null;
+  expect(task.isModified).toBeFalsy();
+  expect(task.status).toBe(Status.Pending);
+
+  task.wait = DateTime.local();
+  task.due = DateTime.local();
+  task.tags.add("hello");
+  expect(task.isModified).toBeTruthy();
+
+  expect(toJSON(task)).toEqual({
+    uuid,
+    // We always write status as pending when waiting.
+    status: "pending",
+    entry: expect.toBeCloseToDate(),
+    wait: expect.toBeCloseToDate(),
+    due: expect.toBeCloseToDate(),
+    description: "the task",
+    tags: ["MyTag", "OtherTag", "hello"],
+  });
+
+  await task.reload();
+  expect(task.isModified).toBeFalsy();
+
+  expect(toJSON(task)).toEqual({
+    uuid,
+    status: "pending",
+    entry: expect.toBeCloseToDate(),
+    description: "the task",
+    tags: ["MyTag", "OtherTag"],
     project: "Foo",
   });
 });
