@@ -57,12 +57,21 @@ test("annotations", async (): Promise<void> => {
 
   let tasks = await warrior.list();
   expect(tasks).toHaveLength(1);
-  let annotations = [...tasks[0].annotations];
-  expect(annotations).toHaveLength(2);
-  expect(annotations.map((a: Annotation): string => a.description)).toEqual([
+  expect(tasks[0].annotations).toHaveLength(2);
+  expect(tasks[0].annotations.map((a: Annotation): string => a.description)).toEqual([
     "this is the first",
     "this is the second",
   ]);
+
+  let found = tasks[0].annotations.find(
+    (a: Annotation): boolean => a.description.endsWith("first"),
+  );
+  expect(found).toEqual(tasks[0].annotations[0]);
+
+  let filtered = tasks[0].annotations.filter(
+    (a: Annotation): boolean => a.description.endsWith("first"),
+  );
+  expect(filtered).toEqual([tasks[0].annotations[0]]);
 });
 
 test("depends", async (): Promise<void> => {
