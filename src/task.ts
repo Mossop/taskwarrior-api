@@ -5,12 +5,21 @@ import {
   ExposedTask,
   Annotation,
   Status,
-  UUID,
   ParsedTask,
 } from "./interfaces";
 import { InternalTaskWarrior } from "./taskwarrior";
 import { toJSON, annotation, annotationsEqual, addAnnotation } from "./utils";
 
+/**
+ * Holds the list of annotations in sorted order.
+ *
+ * Operates similar to a readonly array, most array operations are provided.
+ * Annotations can be added and removed with the `add` and `delete` methods.
+ * Annotations are always listed in date order.
+ *
+ * Since Taskwarrior does not support annotations with matching dates dates may
+ * be altered slightly when added to avoid collisions.
+ */
 export abstract class Annotations implements Iterable<Annotation> {
   private _annotations: Annotation[];
 
@@ -21,6 +30,16 @@ export abstract class Annotations implements Iterable<Annotation> {
     }
   }
 
+  /**
+   * Adds a new annotation.
+   *
+   * If no date is provided then the current date is used.
+   *
+   * Important to note is that task warrior does not support multiple
+   * annotations with the same time. If you attempt to add such an annotation
+   * its time will be slightly altered to avoid overlapping with existing
+   * annotations.
+   */
   public add(ann: Annotation): void;
   public add(description: string, dt?: DateTime): void;
   public add(arg0: string | Annotation, dt?: DateTime): void {
@@ -29,6 +48,12 @@ export abstract class Annotations implements Iterable<Annotation> {
     addAnnotation(this._annotations, ann);
   }
 
+  /**
+   * Deletes the given annotation.
+   *
+   * Returns true if an annotation was deleted, false if no such annotation
+   * exists.
+   */
   public delete(annotation: Annotation): boolean {
     for (let i = 0; i < this._annotations.length; i++) {
       if (annotationsEqual(this._annotations[i], annotation)) {
@@ -40,32 +65,53 @@ export abstract class Annotations implements Iterable<Annotation> {
     return false;
   }
 
+  /**
+   * Equivalent to the `Array.prototype.find` method.
+   */
   public find(callbackfn: (value: Annotation, index: number) => boolean): Annotation | undefined {
     return this._annotations.find(callbackfn);
   }
 
+  /**
+   * Equivalent to the `Array.prototype.slice` method.
+   */
   public slice(start?: number, end?: number): Annotation[] {
     return this._annotations.slice(start, end);
   }
 
+  /**
+   * Equivalent to the `Array.prototype.includes` method.
+   */
   public includes(annotation: Annotation): boolean {
     return this._annotations.find(
       (a: Annotation): boolean => annotationsEqual(a, annotation),
     ) != undefined;
   }
 
+  /**
+   * Equivalent to the `Array.prototype.filter` method.
+   */
   public filter(callbackfn: (value: Annotation, index: number) => boolean): Annotation[] {
     return this._annotations.filter(callbackfn);
   }
 
+  /**
+   * Equivalent to the `Array.prototype.map` method.
+   */
   public map<T>(callbackfn: (value: Annotation, index: number) => T): T[] {
     return this._annotations.map(callbackfn);
   }
 
+  /**
+   * Gets the annotation at the given index.
+   */
   public get(item: number): Annotation | undefined {
     return this._annotations[item];
   }
 
+  /**
+   * Returns the number of annotations.
+   */
   public get length(): number {
     return this._annotations.length;
   }
@@ -94,6 +140,12 @@ function annotations(
   }) as Annotations & Record<number, Annotation | undefined>;
 }
 
+/**
+ * A single task.
+ *
+ * Modifications to this object are held in memory and not written to
+ * Taskwarrior's database until the `save` or `update` method is called.
+ */
 export abstract class Task implements ExposedTask {
   private _annotations: Annotations & Record<number, Annotation | undefined>;
   private _tags: Set<string> = new Set();
@@ -132,8 +184,9 @@ export abstract class Task implements ExposedTask {
   }
 
   /**
-   * Gets the parent recurring task for a child. If this is not a child recurring task then this
-   * will return null.
+   * Gets the parent recurring task for a child.
+   *
+   * If this is not a child recurring task then this will return null.
    */
   public get parent(): Promise<Task | null> {
     if (!this._base.parent) {
@@ -144,12 +197,13 @@ export abstract class Task implements ExposedTask {
   }
 
   /**
-   * For a parent recurring task the existing child tasks. For a task that isn't a parent this will
-   * throw an exception.
+   * For a parent recurring task lists the existing child tasks.
+   *
+   * For a task that isn't a parent this will return null.
    */
-  public get children(): Promise<Task[]> {
+  public get children(): Promise<Task[] | null> {
     if (this.status != Status.Recurring) {
-      throw new Error("Task is not a recurring parent.");
+      return Promise.resolve(null);
     }
 
     return this._warrior.list([`parent:${this.uuid}`]);
@@ -191,7 +245,6 @@ export abstract class Task implements ExposedTask {
       }
     }
 
-    // Not perfect, but good enough.
     for (let annotation of this._base.annotations) {
       if (!this._annotations.includes(annotation)) {
         return true;
@@ -218,7 +271,7 @@ export abstract class Task implements ExposedTask {
 
   /**
    * Reloads this task from the task database bringing in any new changes and discarding any
-   * uncommitted modifications.
+   * unsaved modifications.
    */
   public async reload(): Promise<void> {
     let updated = await this._warrior.internalList([`uuid:${this.uuid}`]);
@@ -232,7 +285,7 @@ export abstract class Task implements ExposedTask {
   /**
    * The task's unique identifier.
    */
-  public get uuid(): UUID {
+  public get uuid(): string {
     return this._base.uuid;
   }
 

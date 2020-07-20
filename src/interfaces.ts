@@ -5,8 +5,6 @@ export interface Annotation {
   description: string;
 }
 
-export type UUID = string;
-
 export enum Status {
   Pending = "pending",
   Deleted = "deleted",
@@ -63,7 +61,7 @@ interface TaskRecurrence {
 }
 
 interface GeneratedTaskFields {
-  readonly uuid: UUID;
+  readonly uuid: string;
   readonly modified: DateTime;
   readonly urgency: number;
 }

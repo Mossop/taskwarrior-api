@@ -68,6 +68,9 @@ test("annotations", async (): Promise<void> => {
   );
   expect(found).toEqual(tasks[0].annotations[0]);
 
+  await expect(tasks[0].parent).resolves.toBeNull();
+  await expect(tasks[0].children).resolves.toBeNull();
+
   let filtered = tasks[0].annotations.filter(
     (a: Annotation): boolean => a.description.endsWith("first"),
   );

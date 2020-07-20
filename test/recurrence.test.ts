@@ -75,8 +75,8 @@ test("Basic lookup", async (): Promise<void> => {
   ]);
 
   let foundChildren = await parent.children;
-  foundChildren.sort((a: Task, b: Task): number => dtCompare(a.due, b.due));
-  expect(foundChildren.map((task: Task): string => task.uuid)).toEqual([
+  foundChildren?.sort((a: Task, b: Task): number => dtCompare(a.due, b.due));
+  expect(foundChildren?.map((task: Task): string => task.uuid)).toEqual([
     children[0].uuid,
     children[1].uuid,
     children[2].uuid,

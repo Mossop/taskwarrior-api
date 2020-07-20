@@ -32,6 +32,9 @@ function defaultSettings(): Settings {
   };
 }
 
+/**
+ * Accesses a Taskwarrior database.
+ */
 export abstract class TaskWarrior {
   private settings: Settings;
 
@@ -67,10 +70,16 @@ export abstract class TaskWarrior {
 
   protected abstract buildTask(parsed: ParsedTask): Task;
 
+  /**
+   * Reloads the task configuration from the database.
+   */
   public async reloadConfiguration(): Promise<void> {
     return;
   }
 
+  /**
+   * Gets the task with the given uuid or null if there is no such task.
+   */
   public async get(uuid: string): Promise<Task | null> {
     let tasks = await this.list([`uuid:${uuid}`]);
     if (tasks.length == 1) {
@@ -79,6 +88,11 @@ export abstract class TaskWarrior {
     return null;
   }
 
+  /**
+   * Lists tasks based on a filter.
+   *
+   * The filter strings are arguments to the task binary.
+   */
   public async list(filter: string[] = []): Promise<Task[]> {
     let baseTasks = await this.internalList(filter);
     return baseTasks.map((base: ParsedTask): Task => this.buildTask(base));
@@ -89,16 +103,29 @@ export abstract class TaskWarrior {
     return TasksDecoder.decodePromise(JSON.parse(data));
   }
 
+  /**
+   * Counts tasks based on a filter.
+   *
+   * The filter strings are arguments to the task binary.
+   */
   public async count(filter: string[] = []): Promise<number> {
     let data = await this.execTask([...filter, "count"]);
     return parseInt(data.trim());
   }
 
+  /**
+   * Creates a new task.
+   */
   public async create(task: CreateTask): Promise<Task> {
     let created = await this.bulkCreate([task]);
     return created[0];
   }
 
+  /**
+   * Creates a list of tasks.
+   *
+   * The returned task objects are in the same order as the objects provided.
+   */
   public async bulkCreate(tasks: CreateTask[]): Promise<Task[]> {
     let json = tasks.map(toJSON);
     await this.execTask(["import"], undefined, JSON.stringify(json));
@@ -115,6 +142,12 @@ export abstract class TaskWarrior {
     });
   }
 
+  /**
+   * Saves a list of tasks.
+   *
+   * Equivalent to calling `save()` on each task object but reduces the number
+   * of operations required.
+   */
   public async bulkSave(tasks: Task[]): Promise<void> {
     let internals = tasks.map((task: Task): InternalTask => {
       if (task instanceof InternalTask) {
