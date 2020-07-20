@@ -383,8 +383,4 @@ export class InternalTask extends Task {
   public overwrite(parsed: ParsedTask): void {
     this.initFrom(parsed);
   }
-
-  public updateArguments(): string[] {
-    return [];
-  }
 }

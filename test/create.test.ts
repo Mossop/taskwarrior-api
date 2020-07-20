@@ -26,6 +26,9 @@ test("basic create", async (): Promise<void> => {
     description: "new task",
   });
 
+  expect(built.modified).toBeCloseToDate(built.entry, 5);
+  expect(built.urgency).toBe(0);
+
   let found = await warrior.list();
   expect(found).toHaveLength(1);
 

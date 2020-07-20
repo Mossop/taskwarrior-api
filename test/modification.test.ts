@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 
-import tw, { Status } from "../src";
+import tw, { Status, Annotation } from "../src";
 import { toJSON } from "../src/utils";
 import { expect, UUID_REGEX } from "./expect";
 import { buildTaskDb, cleanTaskDb } from "./utils";
@@ -83,6 +83,26 @@ test("Update attributes", async (): Promise<void> => {
     tags: ["MyTag", "OtherTag"],
     project: "Foo",
   });
+
+  task.entry = DateTime.utc(2020, 1, 2, 3, 4, 5);
+  task.start = DateTime.utc(2020, 2, 3, 4, 5, 6);
+  task.end = DateTime.utc(2020, 3, 4, 5, 6, 7);
+  task.scheduled = DateTime.utc(2020, 5, 6, 7, 8, 9);
+
+  await task.save();
+
+  expect(toJSON(task)).toEqual({
+    uuid,
+    status: "pending",
+    description: "new description",
+    due: expect.toEqualDate(due),
+    tags: ["MyTag", "OtherTag"],
+    project: "Foo",
+    entry: expect.toEqualDate(DateTime.utc(2020, 1, 2, 3, 4, 5)),
+    start: expect.toEqualDate(DateTime.utc(2020, 2, 3, 4, 5, 6)),
+    end: expect.toEqualDate(DateTime.utc(2020, 3, 4, 5, 6, 7)),
+    scheduled: expect.toEqualDate(DateTime.utc(2020, 5, 6, 7, 8, 9)),
+  });
 });
 
 test("Tags", async (): Promise<void> => {
@@ -120,6 +140,7 @@ test("Tags", async (): Promise<void> => {
   task.tags.delete("MyTag");
   expect(task.isModified).toBeTruthy();
   task.tags.add("foo");
+  expect(task.isModified).toBeTruthy();
 
   expect(toJSON(task)).toEqual({
     uuid,
@@ -411,6 +432,45 @@ test("Annotations", async (): Promise<void> => {
       description: "baz",
     }],
   });
+
+  task.annotations.delete(task.annotations[0]!);
+  task.annotations.add("another foo");
+  expect(task.isModified).toBeTruthy();
+
+  expect(toJSON(task)).toEqual({
+    uuid: uuid,
+    status: "pending",
+    entry: expect.toBeCloseToDate(),
+    description: "the task",
+    tags: ["MyTag", "OtherTag"],
+    project: "Foo",
+    annotations: [{
+      entry: expect.toEqualDate(DateTime.utc(2020, 1, 2, 3, 4, 5)),
+      description: "foo",
+    }, {
+      entry: expect.toEqualDate(DateTime.utc(2020, 1, 3, 3, 4, 5)),
+      description: "baz",
+    }, {
+      entry: expect.toBeCloseToDate(),
+      description: "another foo",
+    }],
+  });
+
+  expect(task.annotations.slice(1)).toEqual([
+    task.annotations[1],
+    task.annotations[2],
+  ]);
+
+  expect(task.annotations.map((a: Annotation): string => a.description)).toEqual([
+    "foo",
+    "baz",
+    "another foo",
+  ]);
+
+  expect(task.annotations.delete({
+    entry: DateTime.local(),
+    description: "not found",
+  })).toBeFalsy();
 });
 
 test("Abandon changes", async (): Promise<void> => {
