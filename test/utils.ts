@@ -31,13 +31,17 @@ export async function execTask(args: string[], env: Record<string, string> = {})
 }
 
 let tmp: DirectoryResult | undefined;
-export async function buildTaskDb(commands: string[][] = []): Promise<string> {
+export async function buildTaskDb(
+  commands: string[][] = [],
+  settings: Record<string, string> = {},
+): Promise<string> {
   tmp = await tmpdir({
     unsafeCleanup: true,
   });
 
   let taskRc = path.join(tmp.path, ".taskrc");
   await buildTaskRc(taskRc, {
+    ...settings,
     ["data.location"]: path.join(tmp.path, ".tasks"),
   });
 
