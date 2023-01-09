@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "execa": "^4.0.3",
-    "luxon": "^1.24.1",
+    "luxon": "^1.28.1",
     "ts.data.json": "^1.1.0",
     "uuid": "^8.2.0"
   }
